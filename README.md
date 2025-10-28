@@ -112,4 +112,4 @@ devServer: {
 
 项目已配置自动部署到 GitHub Pages：
 - 访问地址：https://xiaoxcx.github.io/vue2-element-project/
-- 自动部署：每次推送到 main 分支时自动更新
+- 自动部署：每次推送到 main 分支时自动更新# Trigger CI/CD
