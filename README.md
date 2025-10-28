@@ -103,3 +103,13 @@ devServer: {
 - 确保 Node.js 版本 >= 12.0.0
 - 项目使用 npm 作为包管理器
 - 开发时支持热重载，修改代码会自动刷新页面
+
+## CI/CD 状态
+
+[![CI/CD Pipeline](https://github.com/xiaoxcx/vue2-element-project/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/xiaoxcx/vue2-element-project/actions)
+
+## GitHub Pages
+
+项目已配置自动部署到 GitHub Pages：
+- 访问地址：https://xiaoxcx.github.io/vue2-element-project/
+- 自动部署：每次推送到 main 分支时自动更新
