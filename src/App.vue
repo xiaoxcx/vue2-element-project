@@ -46,8 +46,11 @@ export default {
     // 设置初始激活菜单项
     const pathToIndex = {
       '/': '1',
+      '/vue2-element-project/': '1',
       '/about': '2',
-      '/contact': '3'
+      '/vue2-element-project/about': '2',
+      '/contact': '3',
+      '/vue2-element-project/contact': '3'
     };
     this.activeIndex = pathToIndex[this.$route.path] || '1';
   },
@@ -55,8 +58,11 @@ export default {
     $route(to) {
       const pathToIndex = {
         '/': '1',
+        '/vue2-element-project/': '1',
         '/about': '2',
-        '/contact': '3'
+        '/vue2-element-project/about': '2',
+        '/contact': '3',
+        '/vue2-element-project/contact': '3'
       };
       this.activeIndex = pathToIndex[to.path] || '1';
     }
