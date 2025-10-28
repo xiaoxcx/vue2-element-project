@@ -5,7 +5,9 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "dev": "vue-cli-service serve"
+    "dev": "vue-cli-service serve",
+    "lint": "vue-cli-service lint",
+    "test": "echo \"No tests configured\" && exit 0"
   },
   "dependencies": {
     "vue": "^2.6.14",
