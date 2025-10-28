@@ -1,6 +1,9 @@
 const path = require('path');
 
 module.exports = {
+  // GitHub Pages部署配置
+  publicPath: process.env.NODE_ENV === 'production' ? '/vue2-element-project/' : '/',
+  
   // 开发服务器配置
   devServer: {
     port: 8080,
