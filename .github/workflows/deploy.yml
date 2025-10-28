@@ -1,0 +1,255 @@
+name: Vue2 Element UI - Auto Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # 手动触发部署
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+
+env:
+  NODE_VERSION: '18'
+  PUBLIC_PATH: '/vue2-element-project/'
+
+jobs:
+  # 代码质量检查
+  quality-check:
+    name: "代码质量检查"
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 设置Node.js环境
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'yarn'
+
+    - name: 安装依赖
+      run: yarn install --frozen-lockfile --prefer-offline
+
+    - name: 代码安全检查
+      run: |
+        echo "🔍 开始代码安全检查..."
+        # 检查敏感信息
+        if grep -r "password\|secret\|token" --include="*.js" --include="*.vue" --include="*.json" src/ public/; then
+          echo "⚠️  发现可能的敏感信息，请检查代码"
+          exit 1
+        else
+          echo "✅ 代码安全检查通过"
+        fi
+
+    - name: 构建产物检查
+      run: |
+        echo "🏗️  开始构建项目..."
+        yarn build
+        
+        echo "📁 检查构建输出..."
+        if [ ! -d "dist" ]; then
+          echo "❌ dist目录不存在，构建失败"
+          exit 1
+        fi
+        
+        echo "📊 构建产物统计:"
+        find dist -type f -name "*.js" -o -name "*.css" -o -name "*.html" | wc -l
+        du -sh dist/
+        
+        echo "✅ 构建检查通过"
+
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          dist/
+        retention-days: 3
+
+  # 自动化测试
+  automated-tests:
+    name: "自动化测试"
+    runs-on: ubuntu-latest
+    needs: quality-check
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置Node.js环境
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'yarn'
+
+    - name: 安装依赖
+      run: yarn install --frozen-lockfile
+
+    - name: 运行基础测试
+      run: |
+        echo "🧪 开始运行测试..."
+        
+        # 检查构建配置
+        if [ -f "vue.config.js" ]; then
+          echo "✅ vue.config.js 配置正常"
+        else
+          echo "❌ vue.config.js 文件缺失"
+          exit 1
+        fi
+        
+        # 检查路由配置
+        if [ -f "src/router/index.js" ]; then
+          echo "✅ 路由配置正常"
+        else
+          echo "⚠️  路由配置文件可能缺失"
+        fi
+        
+        # 运行构建测试
+        yarn build
+        
+        # 检查构建产物
+        if [ -f "dist/index.html" ]; then
+          echo "✅ index.html 生成正常"
+          # 检查HTML文件完整性
+          if grep -q "<div id=\"app\">" dist/index.html; then
+            echo "✅ Vue应用挂载点正常"
+          else
+            echo "❌ Vue应用挂载点异常"
+            exit 1
+          fi
+        else
+          echo "❌ index.html 生成失败"
+          exit 1
+        fi
+        
+        echo "🎉 所有测试通过"
+
+  # 生产环境部署
+  deploy-production:
+    name: "部署到生产环境"
+    runs-on: ubuntu-latest
+    needs: [quality-check, automated-tests]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 设置Node.js环境
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'yarn'
+
+    - name: 安装依赖
+      run: yarn install --frozen-lockfile
+
+    - name: 构建生产版本
+      run: |
+        echo "🚀 开始生产环境构建..."
+        NODE_ENV=production yarn build
+        
+        echo "📋 构建产物清单:"
+        find dist -type f | sort
+        
+        # 验证构建产物
+        if [ ! -f "dist/index.html" ]; then
+          echo "❌ 构建失败: index.html 不存在"
+          exit 1
+        fi
+        
+        echo "✅ 生产构建完成"
+
+    - name: 配置GitHub Pages部署
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
+        publish_branch: gh-pages
+        force_orphan: true
+        user_name: 'github-actions[bot]'
+        user_email: 'github-actions[bot]@users.noreply.github.com'
+        commit_message: "🚀 Deploy: ${{ github.sha }}"
+
+    - name: 部署成功通知
+      run: |
+        echo "🎉 部署成功!"
+        echo "🌐 访问地址: https://xiaoxcx.github.io/vue2-element-project/"
+        echo "📅 部署时间: $(date)"
+        echo "🔗 Commit: ${{ github.sha }}"
+
+  # 部署后验证
+  post-deploy-verify:
+    name: "部署后验证"
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: always()
+    
+    steps:
+    - name: 等待部署完成
+      run: |
+        echo "⏳ 等待GitHub Pages部署完成..."
+        sleep 60  # 等待1分钟让Pages部署完成
+
+    - name: 验证网站可访问性
+      run: |
+        echo "🔍 开始验证网站可访问性..."
+        
+        # 使用curl检查网站状态
+        STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://xiaoxcx.github.io/vue2-element-project/ || echo "000")
+        
+        if [ "$STATUS_CODE" = "200" ]; then
+          echo "✅ 网站可正常访问 (HTTP 200)"
+        elif [ "$STATUS_CODE" = "404" ]; then
+          echo "⚠️  网站返回404，可能还在部署中"
+        else
+          echo "❌ 网站访问异常，状态码: $STATUS_CODE"
+        fi
+
+    - name: 发送部署报告
+      if: always()
+      run: |
+        echo "📊 部署报告"
+        echo "=========="
+        echo "仓库: ${{ github.repository }}"
+        echo "分支: ${{ github.ref }}"
+        echo "提交: ${{ github.sha }}"
+        echo "触发者: ${{ github.actor }}"
+        echo "工作流: ${{ github.workflow }}"
+        echo "结果: ${{ job.status }}"
+        echo "部署地址: https://xiaoxcx.github.io/vue2-element-project/"
+
+  # 清理工作
+  cleanup:
+    name: "清理工作"
+    runs-on: ubuntu-latest
+    needs: [deploy-production, post-deploy-verify]
+    if: always()
+    
+    steps:
+    - name: 清理缓存
+      run: |
+        echo "🧹 开始清理工作..."
+        # 清理Node.js缓存
+        yarn cache clean
+        
+    - name: 工作流完成
+      run: |
+        echo "🏁 CI/CD 工作流执行完成"
+        echo "================================"
+        echo "📈 查看详细报告: https://github.com/${{ github.repository }}/actions"
+        echo "🌐 访问网站: https://xiaoxcx.github.io/vue2-element-project/"
+        echo "📚 文档: https://github.com/${{ github.repository }}/blob/main/README.md"

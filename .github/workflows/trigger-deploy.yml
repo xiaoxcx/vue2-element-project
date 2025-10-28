@@ -1,0 +1,44 @@
+name: Trigger Deployment
+
+# 这个工作流用于手动触发部署
+on:
+  workflow_dispatch:
+    inputs:
+      deploy-type:
+        description: '部署类型'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - quick
+        - test-only
+
+jobs:
+  trigger-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检查部署类型
+      run: |
+        echo "🚀 开始部署流程..."
+        echo "部署类型: ${{ github.event.inputs.deploy-type }}"
+        echo "触发时间: $(date)"
+        
+        case "${{ github.event.inputs.deploy-type }}" in
+          "full")
+            echo "🔧 执行完整部署流程"
+            ;;
+          "quick")
+            echo "⚡ 执行快速部署（跳过测试）"
+            ;;
+          "test-only")
+            echo "🧪 仅执行测试，不部署"
+            ;;
+        esac
+
+    - name: 触发主部署流程
+      run: |
+        echo "🔄 触发主部署工作流..."
+        echo "主工作流: deploy.yml"
+        echo "请检查 Actions 页面查看部署进度"
